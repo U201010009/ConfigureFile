@@ -1,57 +1,67 @@
 
 #include "FileOperation.h"
 
+#define		FILE_NOTES		'#'
+
 using namespace std;
 
 MyFileOperation::MyFileOperation(const string& filename) :
 	m_filename(filename)
-		, m_valueMap()
+	, m_valueList()
 {
 
 }
 
 MyFileOperation::~MyFileOperation()
 {
-	if (!m_valueMap.empty())
+	if (!m_valueList.empty())
 	{
-		m_valueMap.clear();
+		m_valueList.clear();
 	}
 }
 
-//public methods : get file messages and put messages into map
-bool MyFileOperation::getfile()
+//public methods : read file messages and put messages into map
+FILE_OPERATION_STATUS MyFileOperation::read()
 {
 	if ("" == m_filename)
 	{
-		return false;
+		return FILE_OPERATION_FAILED;
 	}
 	ifstream ifs(m_filename.c_str());
 	string buff;
 	while(getline(ifs, buff))
 	{
-		if ("" == buff || isnotes(buff))
+		if ("" == buff || isNotes(buff))
 		{
-			continue;
+			ConfigInfo tmpInfo = { buff, "" };
+			m_valueList.push_back(tmpInfo);
 		}
-		string strname = getName(buff);
-		string strvalue = getValue(buff);
-		m_valueMap.insert(MyFileValue::value_type(strname, strvalue));
+		else
+		{
+			ConfigInfo tmpInfo;
+			tmpInfo.key_ = getName(buff);
+			tmpInfo.value_ = getValue(buff);
+			m_valueList.push_back(tmpInfo);
+		}
 	}
-	return true;
+	return FILE_OPERATION_SUCCESS;
 }
 
 //public methods : get the name's value
 string MyFileOperation::getValuebyName(const string& name)
 {
 	string ret = "";
-	if (m_valueMap.empty())
+	if (m_valueList.empty())
 	{
 		return ret;
 	}
-	MyFileValue::iterator it = m_valueMap.find(name.c_str());
-	if (it != m_valueMap.end())
+	for (MyFileInfos::const_iterator cit = m_valueList.begin(); cit != m_valueList.end(); ++cit)
 	{
-		ret = it->second;
+		if (name == cit->key_)
+		{
+			ret = cit->value_;
+			break;
+		}
 	}
 	return ret;
 }
@@ -59,64 +69,52 @@ string MyFileOperation::getValuebyName(const string& name)
 //public methods : change the name's value
 FILE_OPERATION_STATUS MyFileOperation::setValue(const string& name, const string& values)
 {
-	if (m_filename.empty() || m_valueMap.empty())
+	if (m_filename.empty() || m_valueList.empty())
 	{
-		return FX_FAILED;
+		return FILE_OPERATION_FAILED;
 	}
-	string buff;
-	list<string>strbuff;
-	bool bname = false;
 
-	ifstream ifs(m_filename, ios::in | ios::ate);
-	if (!ifs.is_open())
+	for (MyFileInfos::iterator it = m_valueList.begin(); it != m_valueList.end(); ++it)
 	{
-		return FX_FAILED;
-	}
-	ifs.seekg(0, ios_base::beg);
-	while (getline(ifs, buff))
-	{
-		buff += '\n';
-		strbuff.push_back(buff);
-		if (buff.empty() || isnotes(buff))
+		if (name == it->key_)
 		{
-			continue;
-		}
-
-		if (isname(buff, name))
-		{
-			strbuff.pop_back();
-			strbuff.push_back(changeValue(buff, values));
-			bname = true;
+			it->value_ = values;
+			return FILE_OPERATION_SUCCESS;
 		}
 	}
-	ifs.close();
 
-	ofstream ofs(m_filename, ios::out | ios::trunc);
-	if (!ofs.is_open())
-	{
-		strbuff.clear();
-		return FX_FAILED;
-	}
-
-	while (!strbuff.empty())
-	{
-		ofs<<(strbuff.front().c_str());
-		strbuff.pop_front();
-	}
-	strbuff.clear();
-	ofs.close();
-
-	MyFileValue:: iterator it = m_valueMap.find(name.c_str());
-	if (m_valueMap.end() != it)
-	{
-		//m_valueMap.insert(MyFileValue::value_type(name, values)); //won't cover the value
-		m_valueMap[name] = values;
-	}
-
-	return bname ? FX_SUCCESS : FX_FAILED;
+	return FILE_OPERATION_FAILED;
 }
 
 
+//write file
+FILE_OPERATION_STATUS MyFileOperation::write()
+{
+	ofstream ofs(m_filename, ios::out | ios::trunc);
+	if (!ofs.is_open())
+	{
+		return FILE_OPERATION_FAILED;
+	}
+
+	for (MyFileInfos::const_iterator cit = m_valueList.begin(); cit != m_valueList.end(); ++cit)
+	{
+		if (cit->key_.empty() || FILE_NOTES == cit->key_.at(0))
+		{
+			ofs << cit->key_ << endl;
+		}
+		else
+		{
+			string strLine = cit->key_;
+			strLine += "=";
+			strLine += cit->value_;
+			ofs << strLine << endl;
+		}
+	}
+
+	ofs.close();
+
+	return FILE_OPERATION_SUCCESS;
+}
 
 
 
@@ -160,42 +158,12 @@ string MyFileOperation::getName(const string& buff, char f/* = '='*/)
 	return Name;
 }
 
-bool MyFileOperation::isnotes(const string& buff)
+bool MyFileOperation::isNotes(const string& buff)
 {
-	if('#' == *(buff.c_str()))
+	if(FILE_NOTES == *(buff.c_str()))
 	{
 		return true;
 	}
 	return false;
 }
 
-bool MyFileOperation::isname(const string& name, const string& dest_name)
-{
-	const char* pname = name.c_str();
-	const char* pdest_name = dest_name.c_str();
-	return NULL != strstr(pname, pdest_name) ? true : false;
-}
-
-string MyFileOperation::changeValue(const string& buff, const string& values, char f/* = '='*/)
-{
-	const char* pvalues = values.c_str();
-	const char* pbuff = buff.c_str();
-	string ret = "";
-	const char* pos = NULL;
-	if(pos = strstr(pbuff, &f))
-	{
-		while(*pbuff != f && *pbuff != '\0')
-		{
-			ret += *pbuff;
-			++pbuff;
-		}
-		while (*pos == f || *pos == ' ' && *pos != '\0')
-		{
-			ret += *pos;
-			++pos;
-		}
-		ret += pvalues;
-		ret += '\n';
-	}
-	return ret;
-}
