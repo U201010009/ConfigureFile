@@ -1,16 +1,13 @@
-
 #include "FileOperation.h"
+
+#include <iostream>
+#include <fstream>
 
 #define		FILE_NOTES		'#'
 
-using namespace std;
-
-MyFileOperation::MyFileOperation(const string& filename) :
-	m_filename(filename)
-	, m_valueList()
-{
-
-}
+MyFileOperation::MyFileOperation(const std::string& filename) :
+	m_fileName(filename)
+{}
 
 MyFileOperation::~MyFileOperation()
 {
@@ -23,62 +20,65 @@ MyFileOperation::~MyFileOperation()
 //public methods : read file messages and put messages into map
 FILE_OPERATION_STATUS MyFileOperation::read()
 {
-	if ("" == m_filename)
+	if ("" == m_fileName)
 	{
 		return FILE_OPERATION_FAILED;
 	}
-	ifstream ifs(m_filename.c_str());
-	string buff;
-	while(getline(ifs, buff))
+	std::ifstream ifs(m_fileName.c_str());
+	if (!ifs.is_open())
 	{
-		if ("" == buff || isNotes(buff))
+		return FILE_OPERATION_FAILED;
+	}
+	std::string strBuff;
+	while(getline(ifs, strBuff))
+	{
+		if ("" == strBuff || isNotes(strBuff))
 		{
-			ConfigInfo tmpInfo = { buff, "" };
+			ConfigInfo tmpInfo = { strBuff, "" };
 			m_valueList.push_back(tmpInfo);
 		}
 		else
 		{
 			ConfigInfo tmpInfo;
-			tmpInfo.key_ = getName(buff);
-			tmpInfo.value_ = getValue(buff);
+			tmpInfo.key_ = getName(strBuff);
+			tmpInfo.value_ = getValue(strBuff);
 			m_valueList.push_back(tmpInfo);
 		}
 	}
+	ifs.close();
 	return FILE_OPERATION_SUCCESS;
 }
 
 //public methods : get the name's value
-string MyFileOperation::getValuebyName(const string& name)
+std::string MyFileOperation::getValuebyName(const std::string& strName)
 {
-	string ret = "";
 	if (m_valueList.empty())
 	{
-		return ret;
+		return "";
 	}
 	for (MyFileInfos::const_iterator cit = m_valueList.begin(); cit != m_valueList.end(); ++cit)
 	{
-		if (name == cit->key_)
+		if (strName == cit->key_)
 		{
-			ret = cit->value_;
-			break;
+			return cit->value_;
 		}
 	}
-	return ret;
+	return "";
 }
 
 //public methods : change the name's value
-FILE_OPERATION_STATUS MyFileOperation::setValue(const string& name, const string& values)
+FILE_OPERATION_STATUS MyFileOperation::setValue(const std::string& strName, const std::string& strValue)
 {
-	if (m_filename.empty() || m_valueList.empty())
+	if (m_fileName.empty() || m_valueList.empty())
 	{
 		return FILE_OPERATION_FAILED;
 	}
 
 	for (MyFileInfos::iterator it = m_valueList.begin(); it != m_valueList.end(); ++it)
 	{
-		if (name == it->key_)
+		if (strName == it->key_)
 		{
-			it->value_ = values;
+			it->value_ = strValue;
 			return FILE_OPERATION_SUCCESS;
 		}
 	}
@@ -90,7 +90,7 @@ FILE_OPERATION_STATUS MyFileOperation::setValue(const string& name, const string
 //write file
 FILE_OPERATION_STATUS MyFileOperation::write()
 {
-	ofstream ofs(m_filename, ios::out | ios::trunc);
+	std::ofstream ofs(m_fileName.c_str(), std::ios::out | std::ios::trunc);
 	if (!ofs.is_open())
 	{
 		return FILE_OPERATION_FAILED;
@@ -100,69 +100,80 @@ FILE_OPERATION_STATUS MyFileOperation::write()
 	{
 		if (cit->key_.empty() || FILE_NOTES == cit->key_.at(0))
 		{
-			ofs << cit->key_ << endl;
+			ofs << cit->key_ << std::endl;
 		}
 		else
 		{
-			string strLine = cit->key_;
+			std::string strLine = cit->key_;
 			strLine += "=";
 			strLine += cit->value_;
-			ofs << strLine << endl;
+			ofs << strLine << std::endl;
 		}
 	}
-
 	ofs.close();
-
 	return FILE_OPERATION_SUCCESS;
 }
 
 
 
 
-string MyFileOperation::getValue(const string& buff, char f/* = '='*/)
+std::string MyFileOperation::getValue(const std::string& str, char f/* = '='*/)
 {
-	string Value = "";
-	const char* pos = buff.c_str();
-	if (pos = strstr(pos, &f))
+	std::string strValue = "";
+	std::string::size_type stPos = str.find(f);
+	if (std::string::npos != stPos)
 	{
+		std::string strPos = str.substr(stPos);
+		const char* pos = strPos.c_str();
 		while (*pos == ' ' || *pos == f)
 		{
+			if (*pos == '\0')
+			{
+				return "";
+			}
 			++pos;
 		}
 		while(*pos != ' ' && *pos != f && *pos != '\0')
 		{
-			Value += *pos;
+			strValue += *pos;
 			++pos;
 		}
 	}
-	return Value;
+	return strValue;
 }
 
 
-string MyFileOperation::getName(const string& buff, char f/* = '='*/)
+std::string MyFileOperation::getName(const std::string& str, char f/* = '='*/)
 {
-	string Name = "";
-	const char* pos = buff.c_str();
-	if(strstr(pos, &f))
+	std::string strName = "";
+	const char* pos = str.c_str();
+	if(std::string::npos != str.find(f))
 	{
 		while (*pos == ' ')
 		{
+			if (*pos == '\0')
+			{
+				return "";
+			}
 			++pos;
 		}
-		while (*pos != ' ' && *pos != f)
+		while (*pos != ' ' && *pos != f && *pos != '\0')
 		{
-			Name += *pos;
+			strName += *pos;
 			++pos;
 		}
 	}
-	return Name;
+	return strName;
 }
 
-bool MyFileOperation::isNotes(const string& buff)
+bool MyFileOperation::isNotes(const std::string& str)
 {
-	if(FILE_NOTES == *(buff.c_str()))
+	if (!str.empty())
 	{
-		return true;
+		if (FILE_NOTES == str.at(0))
+		{
+			return true;
+		}
 	}
 	return false;
 }

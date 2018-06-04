@@ -5,16 +5,13 @@
   *	
   *		File Name					:		FileOperation.h
   *		Project Information         :       get file config, for example "a = b", get a' value b
-  *		Create Time					: 		zyl 2017-04-28
-  *		Modified Time				:		2018-06-04
+  *		Create Time	                :       zyl 2017-04-28
+  *		Modified Time               :       2018-06-05
   *
   ***********************************************************/
   
 
 
-#include <string.h>
-#include <iostream>
-#include <fstream>
 #include <string>
 #include <list>
 
@@ -49,13 +46,13 @@ public:
 	
 
 private:
-	std::string getValue(const std::string& buff, char f = '=');
-	std::string getName(const std::string& buff, char f = '=');
-	bool isNotes(const std::string& buff);
+	std::string getValue(const std::string& str, char f = '=');
+	std::string getName(const std::string& str, char f = '=');
+	bool isNotes(const std::string& str);
 
 private:
 	MyFileInfos m_valueList;
-	std::string m_filename;
+	std::string m_fileName;
 };
 
 
