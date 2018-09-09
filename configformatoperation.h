@@ -3,7 +3,7 @@
 
 /************************************************************
   *	
-  *		File Name					:		FileOperation.h
+  *		File Name					:		configformatoperation.h
   *		Project Information         :       get file config, for example "a = b", get a' value b
   *		Create Time	                :       zyl 2017-04-28
   *		Modified Time               :       2018-09-08
